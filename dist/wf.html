@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>WF Comic Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08090d;
+      --panel: rgba(16, 18, 27, 0.82);
+      --panel-solid: #141824;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --line: rgba(255, 255, 255, 0.16);
+      --accent: #38bdf8;
+      --accent-2: #facc15;
+      --danger: #fb7185;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.38);
+      --toolbar-top: calc(12px + env(safe-area-inset-top));
+      --toolbar-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #1e293b 0, var(--bg) 46%, #020617 100%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button {
+      min-width: 44px;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: rgba(56, 189, 248, 0.62);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    button:focus-visible {
+      outline: 3px solid var(--accent-2);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+
+    .viewer {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: contain;
+      user-select: none;
+      cursor: grab;
+    }
+
+    .viewer.is-dragging {
+      cursor: grabbing;
+    }
+
+    .canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    .comic-page {
+      width: 1024px;
+      margin: 0;
+      border-radius: 18px;
+      background: #111827;
+      box-shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
+      overflow: hidden;
+      position: relative;
+      display: none;
+    }
+
+    .comic-page.active {
+      display: block;
+    }
+
+    .comic-page img {
+      display: block;
+      width: 1024px;
+      height: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+      background: #111827;
+    }
+
+    .page-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(2, 6, 23, 0.72);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .topbar,
+    .bottombar,
+    .hint,
+    .help {
+      position: fixed;
+      z-index: 10;
+      transition: opacity 200ms ease, transform 200ms ease;
+    }
+
+    .topbar {
+      top: var(--toolbar-top);
+      left: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #38bdf8, #22c55e);
+      color: #031018;
+      font-weight: 900;
+      box-shadow: 0 10px 28px rgba(56, 189, 248, 0.26);
+    }
+
+    .brand-title {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.18;
+    }
+
+    .brand-title strong {
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-title span {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.07);
+      color: #fff;
+    }
+
+    .top-actions,
+    .bottom-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bottombar {
+      left: 50%;
+      bottom: var(--toolbar-bottom);
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      max-width: calc(100vw - 24px);
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .bottombar button,
+    .top-actions button {
+      padding: 0 15px;
+    }
+
+    .primary {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(34, 197, 94, 0.88));
+      color: #031018;
+      border-color: rgba(255, 255, 255, 0.26);
+    }
+
+    .hint {
+      top: 92px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(560px, calc(100vw - 32px));
+      padding: 12px 16px;
+      border-radius: 18px;
+      background: rgba(250, 204, 21, 0.94);
+      color: #171203;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(82px + env(safe-area-inset-bottom));
+      z-index: 20;
+      max-width: min(520px, calc(100vw - 28px));
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      border: 1px solid var(--line);
+      transform: translateX(-50%);
+      box-shadow: var(--shadow);
+      font-size: 14px;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .help {
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 18px;
+      background: rgba(2, 6, 23, 0.72);
+      z-index: 30;
+    }
+
+    .help.open {
+      display: grid;
+    }
+
+    .help-card {
+      width: min(620px, 100%);
+      max-height: min(720px, calc(100dvh - 36px));
+      overflow: auto;
+      padding: 22px;
+      border-radius: 26px;
+      background: var(--panel-solid);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .help-card h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+    }
+
+    .help-card ul {
+      margin: 12px 0 20px;
+      padding-left: 22px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .help-card kbd {
+      display: inline-block;
+      min-width: 26px;
+      padding: 3px 7px;
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+      border: 1px solid var(--line);
+      font-family: inherit;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .load-error {
+      min-height: 360px;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      color: #fecdd3;
+      background: rgba(127, 29, 29, 0.35);
+      text-align: center;
+      line-height: 1.6;
+      font-weight: 800;
+    }
+
+    body.hide-controls .topbar,
+    body.hide-controls .bottombar,
+    body.hide-controls .hint {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    body.hide-controls .topbar {
+      transform: translateY(-18px);
+    }
+
+    body.hide-controls .bottombar {
+      transform: translateX(-50%) translateY(18px);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        border-radius: 18px;
+      }
+
+      .brand-title strong {
+        font-size: 14px;
+      }
+
+      .status {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+      }
+
+      .bottombar {
+        width: calc(100vw - 18px);
+        border-radius: 22px;
+        gap: 6px;
+      }
+
+      .bottombar button,
+      .top-actions button {
+        padding: 0 11px;
+        font-size: 13px;
+      }
+
+      .optional-label {
+        display: none;
+      }
+
+      .hint {
+        top: 128px;
+        font-size: 13px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="viewer" class="viewer" aria-label="Dynamic Workflows 漫画查看器">
+    <div id="canvas" class="canvas" aria-label="漫画页面列表"></div>
+  </main>
+
+  <header class="topbar" role="toolbar" aria-label="顶部漫画查看器工具栏">
+    <div class="brand" aria-hidden="true">
+      <div class="brand-mark">WF</div>
+      <div class="brand-title">
+        <strong>Dynamic Workflows Comic</strong>
+        <span>全屏漫画查看器</span>
+      </div>
+    </div>
+
+    <div class="status" aria-live="polite" aria-atomic="true">
+      <span id="pageStatus" class="pill">1 / 5</span>
+      <span id="zoomStatus" class="pill">100%</span>
+      <span id="loadStatus" class="pill">加载中</span>
+    </div>
+
+    <div class="top-actions">
+      <button id="fitBtn" type="button" aria-label="适配窗口">适配</button>
+      <button id="fullscreenBtn" type="button" aria-label="进入全屏">全屏</button>
+      <button id="helpBtn" type="button" aria-label="打开帮助">帮助</button>
+    </div>
+  </header>
+
+  <nav class="bottombar" role="toolbar" aria-label="底部漫画操作工具栏">
+    <button id="prevBtn" type="button" aria-label="上一页">上一页</button>
+    <button id="zoomOutBtn" type="button" aria-label="缩小">－</button>
+    <button id="resetBtn" class="primary" type="button" aria-label="重置视图">重置</button>
+    <button id="zoomInBtn" type="button" aria-label="放大">＋</button>
+    <button id="nextBtn" type="button" aria-label="下一页">下一页</button>
+  </nav>
+
+  <div id="hint" class="hint" role="status">拖动可平移，滚轮/双指可缩放，按 F 全屏，按 0 重置</div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <section id="help" class="help" aria-modal="true" aria-labelledby="helpTitle" role="dialog">
+    <div class="help-card">
+      <h2 id="helpTitle">操作说明</h2>
+      <ul>
+        <li>鼠标拖动 / 手指拖动：移动漫画。</li>
+        <li>鼠标滚轮 / 双指手势：放大或缩小。</li>
+        <li>双击漫画：在适配和 2 倍放大之间切换。</li>
+        <li><kbd>F</kbd>：进入或退出全屏。</li>
+        <li><kbd>+</kbd> / <kbd>-</kbd>：放大或缩小。</li>
+        <li><kbd>0</kbd>：重置当前页视图。</li>
+        <li><kbd>←</kbd> / <kbd>→</kbd>：上一页 / 下一页。</li>
+        <li><kbd>Esc</kbd>：退出全屏或关闭帮助。</li>
+      </ul>
+      <button id="closeHelpBtn" class="primary" type="button">知道了</button>
+    </div>
+  </section>
+
+  <div class="sr-only" aria-live="polite" id="screenReaderStatus"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const imageFiles = [
+        'dynamic_workflows_comic_page_01.png',
+        'dynamic_workflows_comic_page_02.png',
+        'dynamic_workflows_comic_page_03.png',
+        'dynamic_workflows_comic_page_04.png',
+        'dynamic_workflows_comic_page_05.png'
+      ];
+
+      const viewer = document.getElementById('viewer');
+      const canvas = document.getElementById('canvas');
+      const pageStatus = document.getElementById('pageStatus');
+      const zoomStatus = document.getElementById('zoomStatus');
+      const loadStatus = document.getElementById('loadStatus');
+      const srStatus = document.getElementById('screenReaderStatus');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+      const fitBtn = document.getElementById('fitBtn');
+      const helpBtn = document.getElementById('helpBtn');
+      const closeHelpBtn = document.getElementById('closeHelpBtn');
+      const help = document.getElementById('help');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const hint = document.getElementById('hint');
+      const toast = document.getElementById('toast');
+
+      const state = {
+        currentIndex: 0,
+        scale: 1,
+        fitScale: 1,
+        translateX: 0,
+        translateY: 0,
+        contentWidth: 1024,
+        contentHeight: 1536,
+        pageHeights: [],
+        loadedCount: 0,
+        failedCount: 0,
+        dragStart: null,
+        activePointers: new Map(),
+        pinchStart: null,
+        controlsTimer: null,
+        toastTimer: null,
+        hintTimer: null,
+        lastTapTime: 0,
+        lastTapX: 0,
+        lastTapY: 0
+      };
+
+      function buildPages() {
+        imageFiles.forEach((file, index) => {
+          const page = document.createElement('section');
+          page.className = 'comic-page';
+          page.dataset.index = String(index);
+          page.setAttribute('aria-label', `第 ${index + 1} 页漫画`);
+
+          const badge = document.createElement('div');
+          badge.className = 'page-badge';
+          badge.textContent = `${index + 1} / ${imageFiles.length}`;
+
+          const img = document.createElement('img');
+          img.src = file;
+          img.alt = `Dynamic Workflows 漫画第 ${index + 1} 页`;
+          img.draggable = false;
+          img.decoding = 'async';
+
+          img.addEventListener('load', () => {
+            state.loadedCount += 1;
+            measurePages();
+            updateLoadStatus();
+            if (state.loadedCount + state.failedCount === imageFiles.length) {
+              resetToPage(0);
+            }
+          });
+
+          img.addEventListener('error', () => {
+            state.failedCount += 1;
+            page.innerHTML = '';
+            const error = document.createElement('div');
+            error.className = 'load-error';
+            error.innerHTML = `图片加载失败<br>${file}<br>请确认它和 wf.html 在同一个目录`;
+            page.appendChild(badge);
+            page.appendChild(error);
+            measurePages();
+            updateLoadStatus();
+            if (state.loadedCount + state.failedCount === imageFiles.length) {
+              resetToPage(0);
+            }
+          });
+
+          page.appendChild(badge);
+          page.appendChild(img);
+          canvas.appendChild(page);
+        });
+      }
+
+      function viewportSize() {
+        return {
+          width: window.innerWidth,
+          height: window.innerHeight
+        };
+      }
+
+      function measurePages() {
+        const pages = Array.from(canvas.querySelectorAll('.comic-page'));
+        let maxWidth = 1024;
+        state.pageHeights = [];
+
+        pages.forEach((page, index) => {
+          page.classList.toggle('active', index === state.currentIndex);
+
+          const img = page.querySelector('img');
+          const naturalWidth = img && img.naturalWidth ? img.naturalWidth : 1024;
+          const naturalHeight = img && img.naturalHeight ? img.naturalHeight : 1536;
+          const hasError = Boolean(page.querySelector('.load-error'));
+          const pageHeight = hasError ? 360 : naturalHeight;
+
+          page.style.width = `${naturalWidth}px`;
+          if (img) {
+            img.style.width = `${naturalWidth}px`;
+          }
+
+          state.pageHeights[index] = pageHeight;
+          if (index === state.currentIndex) {
+            maxWidth = naturalWidth;
+            state.contentHeight = pageHeight;
+          }
+        });
+
+        state.contentWidth = maxWidth;
+        state.contentHeight = state.pageHeights[state.currentIndex] || 1536;
+        computeFitScale();
+        applyTransform();
+      }
+
+      function computeFitScale() {
+        const viewport = viewportSize();
+        const horizontalPadding = Math.min(96, Math.max(32, viewport.width * 0.08));
+        const verticalPadding = Math.min(120, Math.max(56, viewport.height * 0.08));
+        const maxContentWidth = Math.max(320, viewport.width - horizontalPadding);
+        const maxContentHeight = Math.max(360, viewport.height - verticalPadding);
+        const widthScale = maxContentWidth / state.contentWidth;
+        const heightScale = maxContentHeight / state.contentHeight;
+        const raw = Math.min(widthScale, heightScale);
+        state.fitScale = clamp(raw, 0.12, 1.2);
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function minScale() {
+        return state.fitScale * 0.55;
+      }
+
+      function maxScale() {
+        return state.fitScale * 5;
+      }
+
+      function applyTransform() {
+        state.scale = clamp(state.scale, minScale(), maxScale());
+        clampTranslate();
+        canvas.style.transform = `translate3d(${state.translateX}px, ${state.translateY}px, 0) scale(${state.scale})`;
+        updateStatus();
+      }
+
+      function clampTranslate() {
+        const viewport = viewportSize();
+        const scaledWidth = state.contentWidth * state.scale;
+        const scaledHeight = state.contentHeight * state.scale;
+        const topSafe = 82;
+        const bottomSafe = 82;
+
+        if (scaledWidth <= viewport.width) {
+          state.translateX = (viewport.width - scaledWidth) / 2;
+        } else {
+          const minX = viewport.width - scaledWidth - 24;
+          const maxX = 24;
+          state.translateX = clamp(state.translateX, minX, maxX);
+        }
+
+        if (scaledHeight <= viewport.height) {
+          state.translateY = (viewport.height - scaledHeight) / 2;
+        } else {
+          const minY = viewport.height - scaledHeight - bottomSafe;
+          const maxY = topSafe;
+          state.translateY = clamp(state.translateY, minY, maxY);
+        }
+      }
+
+      function zoomAt(clientX, clientY, nextScale) {
+        const oldScale = state.scale;
+        const newScale = clamp(nextScale, minScale(), maxScale());
+        if (Math.abs(newScale - oldScale) < 0.0001) return;
+
+        const contentX = (clientX - state.translateX) / oldScale;
+        const contentY = (clientY - state.translateY) / oldScale;
+
+        state.scale = newScale;
+        state.translateX = clientX - contentX * newScale;
+        state.translateY = clientY - contentY * newScale;
+        applyTransform();
+      }
+
+      function zoomBy(factor, center) {
+        const viewport = viewportSize();
+        const point = center || { x: viewport.width / 2, y: viewport.height / 2 };
+        zoomAt(point.x, point.y, state.scale * factor);
+      }
+
+      function resetToPage(index = state.currentIndex) {
+        state.currentIndex = clamp(index, 0, imageFiles.length - 1);
+        measurePages();
+        computeFitScale();
+        state.scale = state.fitScale;
+        const viewport = viewportSize();
+        state.translateX = (viewport.width - state.contentWidth * state.scale) / 2;
+        state.translateY = (viewport.height - state.contentHeight * state.scale) / 2;
+        applyTransform();
+        showToast(`已重置第 ${state.currentIndex + 1} 页`);
+      }
+
+      function fitCurrentPage() {
+        resetToPage(state.currentIndex);
+        showToast('已适配窗口');
+      }
+
+      function jumpToPage(index, keepScale = true) {
+        state.currentIndex = clamp(index, 0, imageFiles.length - 1);
+        const previousRelativeScale = state.scale / Math.max(state.fitScale, 0.0001);
+        measurePages();
+        computeFitScale();
+        state.scale = keepScale ? clamp(state.fitScale * previousRelativeScale, minScale(), maxScale()) : state.fitScale;
+        const viewport = viewportSize();
+        state.translateX = (viewport.width - state.contentWidth * state.scale) / 2;
+        state.translateY = (viewport.height - state.contentHeight * state.scale) / 2;
+        applyTransform();
+        showToast(`第 ${state.currentIndex + 1} 页 / 共 ${imageFiles.length} 页`);
+      }
+
+      function updateStatus() {
+        pageStatus.textContent = `${state.currentIndex + 1} / ${imageFiles.length}`;
+        const zoomPercent = Math.round((state.scale / Math.max(state.fitScale, 0.0001)) * 100);
+        zoomStatus.textContent = `${zoomPercent}%`;
+        prevBtn.disabled = state.currentIndex <= 0;
+        nextBtn.disabled = state.currentIndex >= imageFiles.length - 1;
+        srStatus.textContent = `当前第 ${state.currentIndex + 1} 页，缩放 ${zoomPercent}%`;
+      }
+
+      function updateLoadStatus() {
+        const finished = state.loadedCount + state.failedCount;
+        if (finished < imageFiles.length) {
+          loadStatus.textContent = `加载 ${finished}/${imageFiles.length}`;
+        } else if (state.failedCount > 0) {
+          loadStatus.textContent = `失败 ${state.failedCount}`;
+          loadStatus.style.color = '#fecdd3';
+        } else {
+          loadStatus.textContent = '已加载';
+        }
+      }
+
+      function showControls() {
+        document.body.classList.remove('hide-controls');
+        clearTimeout(state.controlsTimer);
+        state.controlsTimer = setTimeout(() => {
+          if (!help.classList.contains('open') && !document.activeElement?.closest('button')) {
+            document.body.classList.add('hide-controls');
+          }
+        }, 4200);
+      }
+
+      function toggleControls() {
+        document.body.classList.toggle('hide-controls');
+        if (!document.body.classList.contains('hide-controls')) showControls();
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(state.toastTimer);
+        state.toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+      }
+
+      function openHelp() {
+        help.classList.add('open');
+        showControls();
+        closeHelpBtn.focus();
+      }
+
+      function closeHelp() {
+        help.classList.remove('open');
+        helpBtn.focus();
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (error) {
+          showToast('当前浏览器不允许真正全屏，已保持沉浸显示');
+        }
+      }
+
+      function updateFullscreenButton() {
+        const isFullscreen = Boolean(document.fullscreenElement);
+        fullscreenBtn.textContent = isFullscreen ? '退出' : '全屏';
+        fullscreenBtn.setAttribute('aria-label', isFullscreen ? '退出全屏' : '进入全屏');
+        setTimeout(() => fitCurrentPage(), 120);
+      }
+
+      function distance(p1, p2) {
+        return Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      }
+
+      function midpoint(p1, p2) {
+        return {
+          x: (p1.clientX + p2.clientX) / 2,
+          y: (p1.clientY + p2.clientY) / 2
+        };
+      }
+
+      function onPointerDown(event) {
+        if (event.target.closest('button') || event.target.closest('.help-card')) return;
+        viewer.setPointerCapture?.(event.pointerId);
+        state.activePointers.set(event.pointerId, event);
+        showControls();
+
+        if (state.activePointers.size === 1) {
+          state.dragStart = {
+            x: event.clientX,
+            y: event.clientY,
+            tx: state.translateX,
+            ty: state.translateY
+          };
+          viewer.classList.add('is-dragging');
+        } else if (state.activePointers.size === 2) {
+          const pointers = Array.from(state.activePointers.values());
+          state.pinchStart = {
+            distance: distance(pointers[0], pointers[1]),
+            scale: state.scale,
+            center: midpoint(pointers[0], pointers[1])
+          };
+          state.dragStart = null;
+        }
+      }
+
+      function onPointerMove(event) {
+        if (!state.activePointers.has(event.pointerId)) return;
+        state.activePointers.set(event.pointerId, event);
+
+        if (state.activePointers.size === 2 && state.pinchStart) {
+          const pointers = Array.from(state.activePointers.values());
+          const nextDistance = distance(pointers[0], pointers[1]);
+          const center = midpoint(pointers[0], pointers[1]);
+          const factor = nextDistance / Math.max(state.pinchStart.distance, 1);
+          zoomAt(center.x, center.y, state.pinchStart.scale * factor);
+          return;
+        }
+
+        if (state.activePointers.size === 1 && state.dragStart) {
+          state.translateX = state.dragStart.tx + (event.clientX - state.dragStart.x);
+          state.translateY = state.dragStart.ty + (event.clientY - state.dragStart.y);
+          applyTransform();
+        }
+      }
+
+      function onPointerUp(event) {
+        if (!state.activePointers.has(event.pointerId)) return;
+        state.activePointers.delete(event.pointerId);
+        viewer.releasePointerCapture?.(event.pointerId);
+
+        if (state.activePointers.size === 0) {
+          viewer.classList.remove('is-dragging');
+          state.dragStart = null;
+          state.pinchStart = null;
+          applyTransform();
+        } else if (state.activePointers.size === 1) {
+          const pointer = Array.from(state.activePointers.values())[0];
+          state.dragStart = {
+            x: pointer.clientX,
+            y: pointer.clientY,
+            tx: state.translateX,
+            ty: state.translateY
+          };
+          state.pinchStart = null;
+        }
+      }
+
+      function onWheel(event) {
+        event.preventDefault();
+        showControls();
+        const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+        zoomAt(event.clientX, event.clientY, state.scale * factor);
+      }
+
+      function onDoubleClick(event) {
+        if (event.target.closest('button') || event.target.closest('.help-card')) return;
+        const relative = state.scale / Math.max(state.fitScale, 0.0001);
+        if (relative > 1.25) {
+          resetToPage(state.currentIndex);
+        } else {
+          zoomAt(event.clientX, event.clientY, state.fitScale * 2);
+          showToast('已放大到 200%');
+        }
+      }
+
+      function onViewerClick(event) {
+        if (event.target.closest('button') || event.target.closest('.help-card')) return;
+        const now = Date.now();
+        const moved = Math.hypot(event.clientX - state.lastTapX, event.clientY - state.lastTapY);
+        if (now - state.lastTapTime > 260 || moved > 24) {
+          toggleControls();
+        }
+        state.lastTapTime = now;
+        state.lastTapX = event.clientX;
+        state.lastTapY = event.clientY;
+      }
+
+      function onKeyDown(event) {
+        const key = event.key;
+        showControls();
+
+        if (help.classList.contains('open')) {
+          if (key === 'Escape') closeHelp();
+          return;
+        }
+
+        if (key === 'ArrowLeft') {
+          event.preventDefault();
+          jumpToPage(state.currentIndex - 1, true);
+        } else if (key === 'ArrowRight') {
+          event.preventDefault();
+          jumpToPage(state.currentIndex + 1, true);
+        } else if (key === '+' || key === '=') {
+          event.preventDefault();
+          zoomBy(1.2);
+        } else if (key === '-' || key === '_') {
+          event.preventDefault();
+          zoomBy(1 / 1.2);
+        } else if (key === '0') {
+          event.preventDefault();
+          resetToPage(state.currentIndex);
+        } else if (key === 'f' || key === 'F') {
+          event.preventDefault();
+          toggleFullscreen();
+        } else if (key === 'h' || key === 'H') {
+          event.preventDefault();
+          openHelp();
+        } else if (key === 'Escape' && document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+      }
+
+      function bindEvents() {
+        prevBtn.addEventListener('click', () => jumpToPage(state.currentIndex - 1, true));
+        nextBtn.addEventListener('click', () => jumpToPage(state.currentIndex + 1, true));
+        zoomInBtn.addEventListener('click', () => zoomBy(1.2));
+        zoomOutBtn.addEventListener('click', () => zoomBy(1 / 1.2));
+        resetBtn.addEventListener('click', () => resetToPage(state.currentIndex));
+        fitBtn.addEventListener('click', fitCurrentPage);
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        helpBtn.addEventListener('click', openHelp);
+        closeHelpBtn.addEventListener('click', closeHelp);
+        help.addEventListener('click', (event) => {
+          if (event.target === help) closeHelp();
+        });
+
+        viewer.addEventListener('pointerdown', onPointerDown);
+        viewer.addEventListener('pointermove', onPointerMove);
+        viewer.addEventListener('pointerup', onPointerUp);
+        viewer.addEventListener('pointercancel', onPointerUp);
+        viewer.addEventListener('wheel', onWheel, { passive: false });
+        viewer.addEventListener('dblclick', onDoubleClick);
+        viewer.addEventListener('click', onViewerClick);
+
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('fullscreenchange', updateFullscreenButton);
+        window.addEventListener('resize', () => {
+          measurePages();
+          resetToPage(state.currentIndex);
+        });
+        window.addEventListener('orientationchange', () => {
+          setTimeout(() => {
+            measurePages();
+            resetToPage(state.currentIndex);
+          }, 240);
+        });
+
+        document.addEventListener('mousemove', showControls);
+        document.addEventListener('touchstart', showControls, { passive: true });
+        document.addEventListener('focusin', showControls);
+      }
+
+      function init() {
+        buildPages();
+        measurePages();
+        updateLoadStatus();
+        bindEvents();
+        resetToPage(0);
+        showControls();
+        state.hintTimer = setTimeout(() => {
+          hint.style.opacity = '0';
+          hint.style.pointerEvents = 'none';
+        }, 5200);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
