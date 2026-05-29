@@ -12,9 +12,9 @@ const tabs: Array<{ id: FeedTab; label: string }> = [
 
 export function FeedTabs({ activeTab, onChange }: FeedTabsProps) {
   return (
-    <div className="sticky top-0 z-10 border-b border-pulse-border bg-white/90 backdrop-blur">
+    <div className="sticky top-0 z-10 border-b border-pulse-border bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-pulse-dark/90">
       <div className="flex items-center justify-between px-4 py-3 sm:px-5">
-        <h1 className="text-xl font-extrabold text-pulse-black">Home</h1>
+        <h1 className="text-xl font-extrabold text-pulse-black dark:text-slate-100">Home</h1>
       </div>
 
       <div className="grid grid-cols-2" role="tablist" aria-label="Feed filters">
@@ -27,11 +27,13 @@ export function FeedTabs({ activeTab, onChange }: FeedTabsProps) {
               type="button"
               role="tab"
               aria-selected={isSelected}
-              className="flex min-h-12 cursor-pointer items-center justify-center font-semibold text-pulse-muted transition-colors duration-200 hover:bg-pulse-soft focus:outline-none focus:ring-2 focus:ring-inset focus:ring-pulse-blue"
+              className="flex min-h-12 cursor-pointer items-center justify-center font-semibold text-pulse-muted transition-colors duration-200 hover:bg-pulse-soft focus:outline-none focus:ring-2 focus:ring-inset focus:ring-pulse-blue dark:text-slate-400 dark:hover:bg-slate-900"
               onClick={() => onChange(tab.id)}
             >
               <span className="relative flex h-full items-center px-2">
-                <span className={isSelected ? 'text-pulse-black' : ''}>{tab.label}</span>
+                <span className={isSelected ? 'text-pulse-black dark:text-slate-100' : ''}>
+                  {tab.label}
+                </span>
                 {isSelected ? (
                   <span className="absolute bottom-0 left-0 right-0 h-1 rounded-full bg-pulse-blue" />
                 ) : null}

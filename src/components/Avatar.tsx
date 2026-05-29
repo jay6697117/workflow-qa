@@ -1,5 +1,7 @@
 type AvatarProps = {
   initials: string;
+  label?: string;
+  color?: string;
   size?: 'sm' | 'md' | 'lg';
 };
 
@@ -9,11 +11,17 @@ const sizeClassName = {
   lg: 'h-14 w-14 text-lg',
 };
 
-export function Avatar({ initials, size = 'md' }: AvatarProps) {
+export function Avatar({
+  initials,
+  label,
+  color = 'from-sky-500 to-indigo-600',
+  size = 'md',
+}: AvatarProps) {
   return (
     <div
-      aria-hidden="true"
-      className={`${sizeClassName[size]} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 font-bold text-white shadow-sm`}
+      aria-label={label}
+      aria-hidden={label ? undefined : 'true'}
+      className={`${sizeClassName[size]} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${color} font-bold text-white shadow-sm`}
     >
       {initials}
     </div>

@@ -4,15 +4,16 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
       colors: {
         pulse: {
           blue: '#1D9BF0',
           black: '#0F1419',
           muted: '#536471',
-          border: '#EFF3F4',
+          border: '#DDE3E8',
           soft: '#F7F9F9',
+          dark: '#050607',
         },
       },
       boxShadow: {

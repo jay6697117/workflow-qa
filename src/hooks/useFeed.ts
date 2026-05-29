@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { initialPosts, suggestedUsers } from '../data/mockData';
-import type { FeedTab, Post, SuggestedUser } from '../types';
+import { currentUser, initialPosts, suggestedUsers } from '../data/mockData';
+import type { FeedTab, Post, SuggestedUser, ToastMessage } from '../types';
 
 const MAX_POST_LENGTH = 280;
 
@@ -8,6 +8,7 @@ export function useFeed() {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [activeTab, setActiveTab] = useState<FeedTab>('for-you');
   const [people, setPeople] = useState<SuggestedUser[]>(suggestedUsers);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const visiblePosts = useMemo(() => {
     if (activeTab === 'following') {
@@ -16,6 +17,14 @@ export function useFeed() {
 
     return posts;
   }, [activeTab, posts]);
+
+  function showToast(message: string) {
+    setToast({ id: `${Date.now()}`, message });
+  }
+
+  function dismissToast() {
+    setToast(null);
+  }
 
   function createPost(content: string) {
     const trimmed = content.trim();
@@ -26,11 +35,7 @@ export function useFeed() {
 
     const post: Post = {
       id: `post-${crypto.randomUUID()}`,
-      author: {
-        name: 'You',
-        handle: 'you',
-        avatar: 'YO',
-      },
+      author: currentUser,
       content: trimmed,
       timestamp: 'now',
       metrics: {
@@ -47,6 +52,7 @@ export function useFeed() {
 
     setPosts((currentPosts) => [post, ...currentPosts]);
     setActiveTab('for-you');
+    showToast('Posted to your mock timeline.');
     return true;
   }
 
@@ -111,9 +117,12 @@ export function useFeed() {
   return {
     activeTab,
     createPost,
+    dismissToast,
     maxPostLength: MAX_POST_LENGTH,
     people,
     setActiveTab,
+    showToast,
+    toast,
     toggleBookmark,
     toggleFollow,
     toggleLike,

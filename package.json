@@ -10,12 +10,12 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@phosphor-icons/react": "latest",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "typescript": "latest",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "lucide-react": "latest"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17",

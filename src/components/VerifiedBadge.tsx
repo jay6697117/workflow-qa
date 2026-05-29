@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check } from '@phosphor-icons/react';
 
 type VerifiedBadgeProps = {
   label?: string;
@@ -11,7 +11,7 @@ export function VerifiedBadge({ label = 'Verified account' }: VerifiedBadgeProps
       title={label}
       aria-label={label}
     >
-      <Check className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={3} />
+      <Check className="h-3.5 w-3.5" aria-hidden="true" weight="bold" />
     </span>
   );
 }
